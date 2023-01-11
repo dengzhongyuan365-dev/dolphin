@@ -114,7 +114,8 @@ DolphinMainWindow::DolphinMainWindow() :
     m_placesPanel(nullptr),
     m_tearDownFromPlacesRequested(false),
     m_backAction(nullptr),
-    m_forwardAction(nullptr)
+    m_forwardAction(nullptr),
+    m_middleClickActionEventFilter(nullptr)
 {
     Q_INIT_RESOURCE(dolphin);
 
@@ -815,13 +816,40 @@ QAction *DolphinMainWindow::urlNavigatorHistoryAction(const KUrlNavigator *urlNa
     return action;
 }
 
+void DolphinMainWindow::installHistoryActionMenuDetector(QAction *action)
+{
+    // HACK KXmlGui adds delay menu actions to its own context menu.
+    // In order for middle click to work, we need to somehow detect when the action is added
+    // on this menu and install the event filter it.
+    // Visibility changes as the menu shows in the menu for the first time, so we'll use that.
+    #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+    connect(action, &QAction::changed, this, [this, action] {
+        const auto items = action->associatedWidgets();
+    #else
+    connect(action, &QAction::visibleChanged, this, [this, action] {
+        const auto items = action->associatedObjects();
+    #endif
+        for (auto *item : items) {
+            if (auto *menu = qobject_cast<QMenu *>(item)) {
+                if (menu != action->parent()) { // Parent is the regular menu.
+                    menu->installEventFilter(m_middleClickActionEventFilter);
+                }
+            }
+        }
+    });
+}
+
 void DolphinMainWindow::slotAboutToShowBackPopupMenu()
 {
     const KUrlNavigator *urlNavigator = m_activeViewContainer->urlNavigatorInternalWithHistory();
     int entries = 0;
     m_backAction->menu()->clear();
-    for (int i = urlNavigator->historyIndex() + 1; i < urlNavigator->historySize() && entries < MaxNumberOfNavigationentries; ++i, ++entries) {
+    const int from = urlNavigator->historyIndex() + 1;
+    for (int i = from; i < urlNavigator->historySize() && entries < MaxNumberOfNavigationentries; ++i, ++entries) {
         QAction *action = urlNavigatorHistoryAction(urlNavigator, i, m_backAction->menu());
+        if (i == from) {
+            installHistoryActionMenuDetector(action);
+        }
         m_backAction->menu()->addAction(action);
     }
 }
@@ -848,8 +876,12 @@ void DolphinMainWindow::slotAboutToShowForwardPopupMenu()
     const KUrlNavigator *urlNavigator = m_activeViewContainer->urlNavigatorInternalWithHistory();
     int entries = 0;
     m_forwardAction->menu()->clear();
-    for (int i = urlNavigator->historyIndex() - 1; i >= 0 && entries < MaxNumberOfNavigationentries; --i, ++entries) {
+    const int from = urlNavigator->historyIndex() - 1;
+    for (int i = from; i >= 0 && entries < MaxNumberOfNavigationentries; --i, ++entries) {
         QAction *action = urlNavigatorHistoryAction(urlNavigator, i, m_forwardAction->menu());
+        if (i == from) {
+            installHistoryActionMenuDetector(action);
+        }
         m_forwardAction->menu()->addAction(action);
     }
 }
@@ -1844,10 +1876,10 @@ void DolphinMainWindow::setupActions()
     actionCollection()->setDefaultShortcuts(m_forwardAction, m_forwardAction->shortcuts());
 
     // enable middle-click to open in a new tab
-    auto *middleClickEventFilter = new MiddleClickActionEventFilter(this);
-    connect(middleClickEventFilter, &MiddleClickActionEventFilter::actionMiddleClicked, this, &DolphinMainWindow::slotBackForwardActionMiddleClicked);
-    m_backAction->menu()->installEventFilter(middleClickEventFilter);
-    m_forwardAction->menu()->installEventFilter(middleClickEventFilter);
+    m_middleClickActionEventFilter = new MiddleClickActionEventFilter(this);
+    connect(m_middleClickActionEventFilter, &MiddleClickActionEventFilter::actionMiddleClicked, this, &DolphinMainWindow::slotBackForwardActionMiddleClicked);
+    m_backAction->menu()->installEventFilter(m_middleClickActionEventFilter);
+    m_forwardAction->menu()->installEventFilter(m_middleClickActionEventFilter);
     KStandardAction::up(this, &DolphinMainWindow::goUp, actionCollection());
     QAction* homeAction = KStandardAction::home(this, &DolphinMainWindow::goHome, actionCollection());
     homeAction->setWhatsThis(xi18nc("@info:whatsthis", "Go to your "

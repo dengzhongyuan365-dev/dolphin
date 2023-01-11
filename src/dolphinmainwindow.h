@@ -40,6 +40,7 @@ class KFileItemList;
 class KJob;
 class KNewFileMenu;
 class KToolBarPopupAction;
+class MiddleClickActionEventFilter;
 class QToolButton;
 class PlacesPanel;
 class TerminalPanel;
@@ -691,6 +692,8 @@ private:
         void jobError(KIO::Job* job) override;
     };
 
+    void installHistoryActionMenuDetector(QAction *action);
+
     KNewFileMenu* m_newFileMenu;
     DolphinTabWidget* m_tabWidget;
     DolphinViewContainer* m_activeViewContainer;
@@ -709,6 +712,7 @@ private:
 
     KToolBarPopupAction* m_backAction;
     KToolBarPopupAction* m_forwardAction;
+    MiddleClickActionEventFilter *m_middleClickActionEventFilter;
 
     QMenu m_searchTools;
     KFileItemActions m_fileItemActions;
