@@ -383,11 +383,11 @@ if(HAVE_BALOO)
         panels/information/informationpanel.cpp
         panels/information/informationpanelcontent.cpp
         panels/information/pixmapviewer.cpp
-        panels/information/phononwidget.cpp
+        panels/information/mediawidget.cpp
         panels/information/informationpanel.h
         panels/information/informationpanelcontent.h
         panels/information/pixmapviewer.h
-        panels/information/phononwidget.h
+        panels/information/mediawidget.h
     )
 endif()
 
@@ -429,14 +429,14 @@ target_sources(dolphinstatic PRIVATE
     ${dolphin_dbus_SRCS}
 )
 
-target_include_directories(dolphinstatic SYSTEM PRIVATE ${PHONON_INCLUDES})
 target_link_libraries(dolphinstatic
     dolphinprivate
     KF6::CoreAddons
     KF6::KCMUtils
     KF6::DBusAddons
     KF6::Notifications
-    Phonon::phonon4qt${QT_MAJOR_VERSION}
+    Qt6::Multimedia
+    Qt6::MultimediaWidgets
 )
 
 if (HAVE_KACTIVITIES)
