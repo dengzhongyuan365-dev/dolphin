@@ -529,10 +529,16 @@ bool DolphinView::sortHiddenLast() const
 
 void DolphinView::setVisibleRoles(const QList<QByteArray> &roles)
 {
-    const QList<QByteArray> previousRoles = roles;
+    const QList<QByteArray> previousRoles = m_visibleRoles;
+    auto previousSortRole = sortRole();
 
     ViewProperties props(viewPropertiesUrl());
     props.setVisibleRoles(roles);
+
+    // change the sort role if it changed
+    if (sortRole() != props.sortRole() && previousRoles.contains(previousSortRole)) {
+        setSortRole(props.sortRole());
+    }
 
     m_visibleRoles = roles;
     m_view->setVisibleRoles(roles);
@@ -1254,8 +1260,7 @@ void DolphinView::slotHeaderContextMenuRequested(const QPointF &pos)
                 visibleRoles.removeOne(selectedRole);
             }
 
-            view->setVisibleRoles(visibleRoles);
-            props.setVisibleRoles(visibleRoles);
+            setVisibleRoles(visibleRoles);
 
             QList<int> columnWidths;
             if (!header->automaticColumnResizing()) {
@@ -1938,14 +1943,7 @@ void DolphinView::slotVisibleRolesChangedByHeader(const QList<QByteArray> &curre
     Q_UNUSED(previous)
     Q_ASSERT(m_container->controller()->view()->visibleRoles() == current);
 
-    const QList<QByteArray> previousVisibleRoles = m_visibleRoles;
-
-    m_visibleRoles = current;
-
-    ViewProperties props(viewPropertiesUrl());
-    props.setVisibleRoles(m_visibleRoles);
-
-    Q_EMIT visibleRolesChanged(m_visibleRoles, previousVisibleRoles);
+    setVisibleRoles(current);
 }
 
 void DolphinView::slotRoleEditingCanceled()
